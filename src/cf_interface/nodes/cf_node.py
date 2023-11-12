@@ -11,6 +11,7 @@ import cflib
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.commander import Commander
+from cflib.crazyflie.high_level_commander import HighLevelCommander
 
 
 def send_fbk(publisher, state):
@@ -22,27 +23,36 @@ def send_fbk(publisher, state):
         publisher.publish(msg)
 
 def process_ctrl(msg, args):
-    #print("CF Control Commands", msg.u)
-    print("Control Received")
-    cf = args
+    cf = args[0]
+    hlcommander = args[1]
     u = msg.u
-    et = time.time() + 5
-    while time.time() <= et:
-        cf.commander.send_position_setpoint(0,0,1,0)
-        time.sleep(0.02)
+
+    if msg.u[2] < -5:
+        hlcommander.land(0,2)
+        time.sleep(2)
+    else:
+        cf.commander.send_velocity_world_setpoint(u[0], u[1], u[2], 0)
+        time.sleep(1/rospy.get_param('/ControlFrequency',0.02))
+    cf.commander.send_notify_setpoint_stop()
 
 
 # Initialize Node
 rospy.init_node("cf_node")
-rate = rospy.Rate(100)
+rate = rospy.Rate(rospy.get_param('/ControlFrequency'))
 
-uri = 'radio://0/80/2M/E7E7E7E7E7'
+uri = 'radio://0/100/2M/E7E7E7E7E7'
 cflib.crtp.init_drivers()
 
 with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
     CF = CF(scf.cf)
     commander = Commander(scf.cf)
-    CtrlListener = rospy.Subscriber('/CF_Ctrl',CtrlCmd, process_ctrl, scf.cf)
+    hlcommander = HighLevelCommander(scf.cf)
+
+    hlcommander.takeoff(0.5,2)
+    time.sleep(2)
+    hlcommander.go_to(0,0,0.5,0,3)
+    time.sleep(3)
+    CtrlListener = rospy.Subscriber('/CF_Ctrl',CtrlCmd, process_ctrl, (scf.cf, hlcommander))
     print("Listening to Controller Commands")
 
     FbkPublisher = rospy.Publisher('/CF_State_Feedback',StateFbk, queue_size=64)
@@ -52,6 +62,9 @@ with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
     while not(rospy.is_shutdown()):
         send_fbk(FbkPublisher, CF.state)
         rate.sleep()
+    
+    hlcommander.land(0,2)
+    time.sleep(2)
     CF.log_stop()
 
 rospy.spin()
