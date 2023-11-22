@@ -1,0 +1,7 @@
+<launch>
+    <node name="tb_node" pkg="tb_interface"
+	      type="tb_node.py" output="screen"/>
+	<node name="controller_node" pkg="controller" 
+	      type="controller_node.py" output="screen" />
+	<rosparam file="$(find controller)/param/controller_params.yaml" />
+</launch>

@@ -20,8 +20,11 @@ def process_CFfbk(msg, args):
     pub_msg.name = "CrazyFlie Control Command"
     publisher.publish(pub_msg)
 
-def process_TBfbk(msg):
-    pass
+def process_TBfbk(msg, args):
+    Controller = args
+    print(msg.state)
+    Controller.updateTargetPos(msg.state[0:3])
+    #print(Controller.TargetPosition)
 
 def InitializeController():
     
@@ -35,7 +38,7 @@ def InitializeController():
     
     MPC.setTumbllerPath([0.6*np.cos(np.pi*t/10) for t in TBref_time], [0.6*np.sin(np.pi*t/10) for t in TBref_time], TBref_time) # reference is a dictionary
     #MPC.setTumbllerPath([0.075*t for t in TBref_time], [0.09*t for t in TBref_time], TBref_time) # reference is a dictionary
-    #MPC.setTumbllerPath([1.6 for t in TBref_time], [-1.2 for t in TBref_time], TBref_time)
+    #MPC.setTumbllerPath([-1+0.125*(t) for t in TBref_time], [0.01 for t in TBref_time], TBref_time)
     #MPC.setTumbllerPath([0.6*np.cos(0.25*t) for t in TBref_time], [0.3*np.sin(0.5*t) for t in TBref_time], TBref_time)
     return MPC
     
@@ -71,7 +74,7 @@ print("Listening to CrazyFlie State Feedback")
 TB_CtrlPublisher = rospy.Publisher('/TB_Ctrl',CtrlCmd, queue_size=64)
 print("Sending Tumbller Controller Commands")
 
-TB_FbkListener = rospy.Subscriber('/TB_State_Feedback',StateFbk, process_TBfbk)
+TB_FbkListener = rospy.Subscriber('/TB_State_Feedback',StateFbk, process_TBfbk, (Controller))
 print("Listening to Tumbller State Feedback")
 
 rate = rospy.Rate(100)

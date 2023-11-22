@@ -30,6 +30,7 @@ class MPCWrapper():
         self.xstore = []
         self.precompute()
         self.StartTime = 0
+        self.TargetPosition = np.zeros((3,1))
 
         self.filename = "../" + rospy.get_param("/LogDir") + "/" + str(rospy.Time.now()) + ".csv"
 
@@ -67,6 +68,9 @@ class MPCWrapper():
         self.refy = y
         self.refz = [0.55 for i in range(len(timevec))]
         self.ref_time = timevec
+    
+    def updateTargetPos(self,state):
+        self.TargetPosition = np.reshape(state,(-1,1))
 
     def NextMove(self, t, y0):
         # Build the Reference Signal
@@ -80,12 +84,18 @@ class MPCWrapper():
         y = np.interp(horizonTimes, self.ref_time, self.refy)
         z = np.interp(horizonTimes, self.ref_time, self.refz)
         ref = []
-        for i in range(len(x)):
-            ref.append([x[i], y[i], z[i]])
+        for i in range(len(horizonTimes)):
+            '''
+            if i==0:
+                ref = self.TargetPosition
+            else:
+                ref = np.vstack((ref,self.TargetPosition))
+            '''
+            ref.append([[x[i]],[y[i]],[z[i]]])
         ref = np.reshape(ref, (-1,1))
 
-        e = y0[0:3] - ref[0:3]
-        if np.linalg.norm(e[0:2])<=0.000:
+        e = y0[0:3] - np.reshape(ref[0:3],(-1))
+        if np.linalg.norm(e[0:2])<=0.001:
             self.u = [0,0,-10]
             self.log(t,np.reshape(ref[self.N-3:self.N,:],(-1)),y0)
             return self.u
@@ -98,8 +108,8 @@ class MPCWrapper():
         if len(z)==0:
             raise Exception("Solution to QP Non-existent")
         self.u = np.reshape(z[0:self.q],(-1,))
-        #self.u[2] = self.u[2] + 0.3
-        self.log(t,np.reshape(ref[0:3,:],(-1)),y0)
+        self.u[2] = self.u[2] + 0.3
+        #self.log(t,np.reshape(ref[0:3,:],(-1)),y0)
 
         return self.u
     
