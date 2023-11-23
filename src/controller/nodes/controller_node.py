@@ -5,6 +5,7 @@ from msgs.msg import StateFbk, CtrlCmd
 from std_msgs.msg import Header
 import numpy as np
 from scripts.CF_controller import MPCWrapper, PIDWrapper
+from scripts.StateMachine import StateMachine
 
 def process_CFfbk(msg, args):
     #print(msg.state, "\n")
@@ -23,25 +24,27 @@ def process_CFfbk(msg, args):
 def process_TBfbk(msg, args):
     Controller = args
     print(msg.state)
-    Controller.updateTargetPos(msg.state[0:3])
+    Controller.updateTargetPos(msg.state[0:2])
     #print(Controller.TargetPosition)
 
 def InitializeController():
     
-    TBref_time = [0.01*i for i in range(6000)]
-    params = rospy.get_param("/MPCParams")
-    MPC = MPCWrapper(params["m"], params["p"], params["q"], params["N"],
+    CtrlFreq = rospy.get_param('/ControlFrequency',50)
+    T = rospy.get_param('/T',60)
+    TBref_time = [i/CtrlFreq for i in range(T*CtrlFreq)]
+    #params = rospy.get_param("/MPCParams")
+    '''MPC = MPCWrapper(params["m"], params["p"], params["q"], params["N"],
                      params["A"], params["B"], params["C"], params["Q"],
                      params["R"], params["ymin"], params["ymax"], 
-                     params["umin"], params["umax"])
-    np.set_printoptions(threshold = np.inf)
-    
-    MPC.setTumbllerPath([0.6*np.cos(np.pi*t/10) for t in TBref_time], [0.6*np.sin(np.pi*t/10) for t in TBref_time], TBref_time) # reference is a dictionary
+                     params["umin"], params["umax"])'''
+    #np.set_printoptions(threshold = np.inf)
+    FSM = StateMachine(([1 for t in TBref_time], [0.01 for t in TBref_time], TBref_time))
+    #MPC.setTumbllerPath([0.6*np.cos(np.pi*t/10) for t in TBref_time], [0.6*np.sin(np.pi*t/10) for t in TBref_time], TBref_time) # reference is a dictionary
     #MPC.setTumbllerPath([0.075*t for t in TBref_time], [0.09*t for t in TBref_time], TBref_time) # reference is a dictionary
     #MPC.setTumbllerPath([-1+0.125*(t) for t in TBref_time], [0.01 for t in TBref_time], TBref_time)
     #MPC.setTumbllerPath([0.6*np.cos(0.25*t) for t in TBref_time], [0.3*np.sin(0.5*t) for t in TBref_time], TBref_time)
-    return MPC
-    
+    #return MPC
+    return FSM
     '''
     PID = PIDWrapper()
     TBref_time = [0.01*i for i in range(6000)]
@@ -59,7 +62,7 @@ startTime = rospy.Time.now()
 
 # Initialize Controller 
 Controller = InitializeController()
-
+#FSM = InitializeController() # RENAME
 
 # CrazyFlie Communication
 

@@ -1,11 +1,13 @@
 ControlFrequency : 50 #Hz
 
+T : 60 # Total Number of Seconds
+
 ControlMode : 1 #1 for MPC, 2 for PID
 
-TrackMode : 1 # 1 for Real Time Tumbller Tracking, 2 for Virtual Tumbller
+TrackMode : 2 # 1 for Real Time Tumbller Tracking, 2 for Virtual Tumbller
 Nstate : 3 # Number of past states to perform prediction with
 
-ErrTol : 0.05 # Error Tolerance in m
+ErrTol : 0.15 # Error Tolerance in m
 
 MPCParams:
         m : 6
@@ -17,11 +19,12 @@ MPCParams:
         C : [[0.0153,0.0151,0,0,0,0],[0,0,0.0121,0.0120,0,0],[0,0,0,0,0.0075,0.0074]]
         Q : [[90,0,0],[0,90,0],[0,0,5]]
         R : [[2,0,0],[0,2,0],[0,0,4]]
-        Qland : [[90,0,0],[0,90,0],[0,0,90]]
-        Rland : [[2,0,0],[0,2,0],[0,0,2]]
+        Qland : [[10,0,0],[0,10,0],[0,0,90]]
+        Rland : [[2,0,0],[0,2,0],[0,0,10]]
         ymin : [[-2],[-2],[0.3]]
         ymax : [[2],[2],[2]]
         umin : [[-1.5],[-1.5],[0.0]]
+        uminland : [[-1.5],[-1.5],[-0.5]]
         umax : [[1.5],[1.5],[1.5]]
 
 PIDParams:

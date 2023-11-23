@@ -13,12 +13,6 @@ class StateMachine():
         self.StateList = ["search", "land", "AllStop"]
         self.ControlMode = rospy.get_param('/ControlMode')
         self.TrackMode = rospy.get_param('/TrackMode',2)
-        if self.ControlMode == 1: # MPC
-            self.MPCInit()
-        elif self.ControlMode == 2: # PID
-            self.PIDInit()
-        else : 
-            raise Exception("Undefined Control Method")
         
         if self.TrackMode == 1: # Track Real Tumbller
             self.Nstate = rospy.get_param('/Nstate',3)
@@ -29,6 +23,12 @@ class StateMachine():
                 raise Exception("Virtual Tracking Commanded but Tumbller path is not provided")
             self.TumbllerPath = TumbllerPath
         
+        if self.ControlMode == 1: # MPC
+            self.MPCInit()
+        elif self.ControlMode == 2: # PID
+            self.PIDInit()
+        else : 
+            raise Exception("Undefined Control Method")
         
         self.errTol = rospy.get_param('/ErrTol', 0.05)
     
@@ -41,8 +41,11 @@ class StateMachine():
         self.LandController = MPCWrapper(params["m"], params["p"], params["q"], params["N"],
                      params["A"], params["B"], params["C"], params["Qland"],
                      params["Rland"], params["ymin"], params["ymax"], 
-                     params["umin"], params["umax"])
+                     params["uminland"], params["umax"])
         self.Controller = self.SearchController
+
+        if self.TrackMode == 2:
+            self.Controller.setReference(self.TumbllerPath[0], self.TumbllerPath[1], [0.55 for i in range(len(self.TumbllerPath[0]))],self.TumbllerPath[2])
     
     def PIDInit(self):
         self.Controller = PIDWrapper()
@@ -55,12 +58,14 @@ class StateMachine():
         if self.State == "search":
             u = self.Controller.NextMove(t,y0)
             e = self.Controller.e
+            print(e)
             if np.linalg.norm(e[0:2]) <= self.errTol:
                 self.StateTransition("land")
         
         elif self.State == "land":
             u = self.Controller.NextMove(t,y0)
             e = self.Controller.e
+            print(np.linalg.norm(e))
             if np.linalg.norm(e) <= self.errTol:
                 self.StateTransition("AllStop")
         
@@ -76,8 +81,10 @@ class StateMachine():
         if newState not in self.StateList:
             raise Exception("Unknown State Commanded from State Machine")
         self.State = newState
+        print("Switched to ",self.State, " phase")
         if self.State == 'land':
             self.Controller = self.LandController
+            self.Controller.setReference(self.TumbllerPath[0], self.TumbllerPath[1], [0 for i in range(len(self.TumbllerPath[0]))],self.TumbllerPath[2])
 
     def setReference(self):
         # If TrackMode  = 1, As and when you receive a reference from the Tumbller, update the variable
@@ -88,4 +95,7 @@ class StateMachine():
         # If trackMode = 1, use the position history to construct a N-sample reference
         # If landing mode, also generate the minimum jerk trajectory over Z
         # If not landing mode, hold Z constant at 0.55m
+        pass
+
+    def log(self):
         pass

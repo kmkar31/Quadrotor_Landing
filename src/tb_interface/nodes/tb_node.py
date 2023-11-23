@@ -19,7 +19,7 @@ def send_fbk(publisher, state, filename, t):
     print(state)
     msg.name = "Tumbller State Feedback"
     publisher.publish(msg)
-
+    '''
     f = open(filename, 'a+')
     if os.path.getsize(filename) == 0:
         f.write("Time," + "X,Y,Z,Vx,Vy,Vz,r,p,y," + "\n")
@@ -28,6 +28,7 @@ def send_fbk(publisher, state, filename, t):
         f.write(str(x)+",")
     f.write("\n")
     f.close()
+    '''
 
 def process_ctrl(msg):
     #print("TB Control Commands", msg.u)
@@ -42,8 +43,8 @@ rospy.init_node("cf_node")
 FbkPublisher = rospy.Publisher('/TB_State_Feedback',StateFbk, queue_size=64)
 print("Sending CF State Feedback")
 
-rate = rospy.Rate(rospy.get_param('/ControlFrequency',100))
-uri = 'radio://1/100/250K/E7E7E7E7E7'
+rate = rospy.Rate(rospy.get_param('/ControlFrequency',50)/2)
+uri = 'radio://1/80/250K/E7E7E7E7E7'
 cflib.crtp.init_drivers()
 
 with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:

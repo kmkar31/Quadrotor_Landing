@@ -25,9 +25,10 @@ def process_ctrl(msg, args):
     cf = args[0]
     hlcommander = args[1]
     u = msg.u
-    print(u)
+    #print(u)
     if msg.u[2] < -5:
-        hlcommander.land(0,1)
+        #hlcommander.land(0,1)
+        cf.commander.send_notify_setpoint_stop()
         time.sleep(10)
     else:
         #cf.commander.send_velocity_world_setpoint(0,0,0,0)
@@ -64,9 +65,9 @@ with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
         send_fbk(FbkPublisher, CF.state)
         rate.sleep()
     
-    #hlcommander.land(0,2)
-    #time.sleep(2)
-    #CF.log_stop()
+    hlcommander.land(0,2)
+    time.sleep(2)
+    CF.log_stop()
 
 rospy.spin()
     

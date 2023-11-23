@@ -30,7 +30,10 @@ class MPCWrapper():
         self.xstore = []
         self.precompute()
         self.StartTime = 0
-        self.TargetPosition = np.zeros((3,1))
+        #self.TargetPosition = np.zeros((3,1))
+        self.T = rospy.get_param('/T',60)
+        self.freq = rospy.get_param("/ControlFrequency", 50) # What Frequency are we controlling at
+        self.Reference = dict()
 
         self.filename = "../" + rospy.get_param("/LogDir") + "/" + str(rospy.Time.now()) + ".csv"
 
@@ -69,37 +72,39 @@ class MPCWrapper():
         self.refz = [0.55 for i in range(len(timevec))]
         self.ref_time = timevec
     
+    def setReference(self, x,y,z, timevec):
+        # Creates a dictionary of reference paths at corresponding times
+        self.Reference['x'] = x
+        self.Reference['y'] = y
+        self.Reference['z'] = z
+        self.Reference['time'] = timevec
+    
     def updateTargetPos(self,state):
-        self.TargetPosition = np.reshape(state,(-1,1))
+        self.TargetPosition = np.reshape(list(state) + [0.55],(-1,1))
 
     def NextMove(self, t, y0):
         # Build the Reference Signal
-        freq = rospy.get_param("/ControlFrequency", 50) # What Frequency are we controlling at
+        
         if self.StartTime == 0:
             self.StartTime = t
         t = t - self.StartTime
-        horizonTimes = [t + i/freq for i in range(self.N)]
+        horizonTimes = [t + i/self.freq for i in range(self.N)]
         # Interpolates the reference values at the control timesteps
-        x = np.interp(horizonTimes, self.ref_time, self.refx)
-        y = np.interp(horizonTimes, self.ref_time, self.refy)
-        z = np.interp(horizonTimes, self.ref_time, self.refz)
+        xref = np.interp(horizonTimes, self.Reference['time'], self.Reference['x'])
+        yref = np.interp(horizonTimes, self.Reference['time'], self.Reference['y'])
+        zref = np.interp(horizonTimes, self.Reference['time'], self.Reference['z'])
         ref = []
-        for i in range(len(horizonTimes)):
-            '''
-            if i==0:
-                ref = self.TargetPosition
-            else:
-                ref = np.vstack((ref,self.TargetPosition))
-            '''
-            ref.append([[x[i]],[y[i]],[z[i]]])
+        for i in range(len(horizonTimes)):            
+            ref.append([[xref[i]],[yref[i]],[zref[i]]])
         ref = np.reshape(ref, (-1,1))
 
-        e = y0[0:3] - np.reshape(ref[0:3],(-1))
-        if np.linalg.norm(e[0:2])<=0.001:
+        self.e = np.reshape(y0[0:3,:] - ref[0:3,:],(-1))
+        '''
+        if np.linalg.norm(self.e[0:2])<=0.05:
             self.u = [0,0,-10]
             self.log(t,np.reshape(ref[self.N-3:self.N,:],(-1)),y0)
             return self.u
-
+        '''
         # Construct Quadprog:
         x0 = np.linalg.pinv(self.C)@y0[0:3] # Convert measurements back to state - Works because measurements are filtered
         f = self.Fx@x0 - self.Fr@ref
@@ -109,7 +114,7 @@ class MPCWrapper():
             raise Exception("Solution to QP Non-existent")
         self.u = np.reshape(z[0:self.q],(-1,))
         self.u[2] = self.u[2] + 0.3
-        #self.log(t,np.reshape(ref[0:3,:],(-1)),y0)
+        self.log(t,np.reshape(ref[0:3,:],(-1)),y0)
 
         return self.u
     
