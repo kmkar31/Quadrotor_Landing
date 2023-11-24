@@ -19,12 +19,14 @@ class StateMachine():
         self.freq = rospy.get_param('/ControlFrequency',50)
         self.EndTime = rospy.get_param('/EndTime',60)
         self.altitude = 0.55
+        self.InterpDegree = 2 # Set Either 1 or 2
+
 
         self.filename = "../" + rospy.get_param("/LogDir") + "/" + str(rospy.Time.now()) + ".csv"
         
         if self.TrackMode == 1: # Track Real Tumbller
             self.Nstate = rospy.get_param('/Nstate',3)
-            self.TumbllerHistory = np.zeros((self.Nstate,3))
+            self.TumbllerHistory = []
 
         elif self.TrackMode == 2:
             if TumbllerPath is None:
@@ -103,17 +105,40 @@ class StateMachine():
 
     def setReference(self, state, t):
         # If TrackMode  = 1, As and when you receive a reference from the Tumbller, update the variable
+        self.TumbllerHistory.append(state)
+        if len(self.TumbllerHistory>3):
+            self.TumbllerHistory.pop(0)
+
         if self.TrackMode == 1:
             timevec = np.arange(t,self.EndTime,1/self.freq)
-            x = [state[0] for i in range(len(timevec))]
-            y = [state[1] for i in range(len(timevec))]
+            if len(self.TumbllerHistory<3):
+                x = [state[0] for i in range(len(timevec))]
+                y = [state[1] for i in range(len(timevec))]
+                
+
+            else:
+                x_vals = np.array([point[0] for point in self.TumbllerHistory])
+                y_vals = np.array([point[1] for point in self.TumbllerHistory])
+                z_vals = np.array([point[2] for point in self.TumbllerHistory])
+                time_vals = np.array([point[3] for point in self.TumbllerHistory])
+
+                px = np.polyfit(time_vals, x_vals, self.InterpDegree)
+                py = np.polyfit(time_vals, y_vals, self.InterpDegree)
+                pz = np.polyfit(time_vals, z_vals, self.InterpDegree)
+
+                x = np.polyval(px, timevec)
+                y = np.polyval(py, timevec)
+                z = np.polyval(pz, timevec)
+            
             if self.State == "land":
                 z = [state[2] + (self.altitude-state[2])*(1 - i/len(timevec)) for i in range(len(timevec))]
             else:
                 z = [0.55 for i in range(len(timevec))]
             self.Controller.setReference(x,y,z,timevec)
+
         else:
             self.Controller.setReference(state[0], state[1], state[2], t)
+
 
         
 
