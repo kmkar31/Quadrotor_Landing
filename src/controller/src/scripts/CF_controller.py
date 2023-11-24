@@ -30,12 +30,13 @@ class MPCWrapper():
         self.xstore = []
         self.precompute()
         self.StartTime = 0
-        #self.TargetPosition = np.zeros((3,1))
-        self.T = rospy.get_param('/T',60)
+       
+        self.T = rospy.get_param('/EndTime',60)
         self.freq = rospy.get_param("/ControlFrequency", 50) # What Frequency are we controlling at
         self.Reference = dict()
-
-        self.filename = "../" + rospy.get_param("/LogDir") + "/" + str(rospy.Time.now()) + ".csv"
+    
+    def setStartTime(self,t):
+        self.StartTime = t
 
     def precompute(self):
         self.T = np.zeros((self.m*self.N, self.p*self.N))
@@ -64,74 +65,39 @@ class MPCWrapper():
                                         mat.repmat(-self.umin, self.N, 1),
                                         mat.repmat(self.ymax,self.N,1) - self.Cbar@self.S@x0,
                                         mat.repmat(-self.ymin, self.N, 1) + self.Cbar@self.S@x0))
-
-    def setTumbllerPath(self, x,y, timevec):
-        # Creates a dictionary of reference paths at corresponding times
-        self.refx = x
-        self.refy = y
-        self.refz = [0.55 for i in range(len(timevec))]
-        self.ref_time = timevec
-    
+  
     def setReference(self, x,y,z, timevec):
         # Creates a dictionary of reference paths at corresponding times
-        self.Reference['x'] = x
-        self.Reference['y'] = y
-        self.Reference['z'] = z
+        self.Reference['x'] = np.reshape(x,(-1,))
+        self.Reference['y'] = np.reshape(y,(-1,))
+        self.Reference['z'] = np.reshape(z,(-1,))
         self.Reference['time'] = timevec
+        print(len(self.Reference['x'],self.Reference['time'] ))
     
-    def updateTargetPos(self,state):
-        self.TargetPosition = np.reshape(list(state) + [0.55],(-1,1))
-
     def NextMove(self, t, y0):
         # Build the Reference Signal
-        
-        if self.StartTime == 0:
-            self.StartTime = t
-        t = t - self.StartTime
         horizonTimes = [t + i/self.freq for i in range(self.N)]
         # Interpolates the reference values at the control timesteps
         xref = np.interp(horizonTimes, self.Reference['time'], self.Reference['x'])
         yref = np.interp(horizonTimes, self.Reference['time'], self.Reference['y'])
         zref = np.interp(horizonTimes, self.Reference['time'], self.Reference['z'])
-        ref = []
+        self.ref = []
         for i in range(len(horizonTimes)):            
-            ref.append([[xref[i]],[yref[i]],[zref[i]]])
-        ref = np.reshape(ref, (-1,1))
+            self.ref.append([[xref[i]],[yref[i]],[zref[i]]])
+        self.ref = np.reshape(self.ref, (-1,1))
 
-        self.e = np.reshape(y0[0:3,:] - ref[0:3,:],(-1))
-        '''
-        if np.linalg.norm(self.e[0:2])<=0.05:
-            self.u = [0,0,-10]
-            self.log(t,np.reshape(ref[self.N-3:self.N,:],(-1)),y0)
-            return self.u
-        '''
+        self.e = np.reshape(y0[0:3,:] - self.ref[0:3,:],(-1))
+
         # Construct Quadprog:
         x0 = np.linalg.pinv(self.C)@y0[0:3] # Convert measurements back to state - Works because measurements are filtered
-        f = self.Fx@x0 - self.Fr@ref
+        f = self.Fx@x0 - self.Fr@self.ref
         sol = qp(matrix(self.H), matrix(f), matrix(self.G), matrix(np.array(self.W(x0))))
         z = np.array(sol['x'])
         if len(z)==0:
             raise Exception("Solution to QP Non-existent")
         self.u = np.reshape(z[0:self.q],(-1,))
-        self.u[2] = self.u[2] + 0.3
-        self.log(t,np.reshape(ref[0:3,:],(-1)),y0)
 
         return self.u
-    
-    def log(self, t,ref, state):
-        self.state = np.reshape(state, (-1))
-        f = open(self.filename, 'a+')
-        if os.path.getsize(self.filename) == 0:
-            f.write("Time," + "X,Y,Z,Vx,Vy,Vz,r,p,y," + "rx,ry,rz," + "Ux,Uy,Uz"+"\n")
-        f.write(str(t) + ",")
-        for x in self.state:
-            f.write(str(x)+",")
-        for r in ref:
-            f.write(str(r)+",")
-        for u in self.u:
-            f.write(str(u)+",")
-        f.write("\n")
-        f.close()
 
 
 class PIDWrapper():

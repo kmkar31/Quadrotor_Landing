@@ -16,7 +16,6 @@ def send_fbk(publisher, state, filename, t):
     msg = StateFbk()
     msg.header = Header(stamp=rospy.Time.now(), frame_id="TB_state")
     msg.state = state
-    print(state)
     msg.name = "Tumbller State Feedback"
     publisher.publish(msg)
     '''
@@ -43,7 +42,7 @@ rospy.init_node("cf_node")
 FbkPublisher = rospy.Publisher('/TB_State_Feedback',StateFbk, queue_size=64)
 print("Sending CF State Feedback")
 
-rate = rospy.Rate(rospy.get_param('/ControlFrequency',50)/2)
+rate = rospy.Rate(rospy.get_param('/ControlFrequency',50)*2)
 uri = 'radio://1/80/250K/E7E7E7E7E7'
 cflib.crtp.init_drivers()
 
