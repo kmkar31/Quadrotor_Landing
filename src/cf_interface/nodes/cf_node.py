@@ -5,7 +5,7 @@ import rospy
 from msgs.msg import StateFbk, CtrlCmd
 from std_msgs.msg import Header
 import numpy as np
-from cf_interface.CF import CF
+from cf_interface.CF import CrazyFlieWrapper
 import time
 import cflib
 from cflib.crazyflie import Crazyflie
@@ -43,7 +43,7 @@ cflib.crtp.init_drivers()
 
 with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
     print("Running")
-    CF = CF(scf.cf)
+    CF = CrazyFlieWrapper(scf.cf)
     commander = Commander(scf.cf)
     hlcommander = HighLevelCommander(scf.cf)
 

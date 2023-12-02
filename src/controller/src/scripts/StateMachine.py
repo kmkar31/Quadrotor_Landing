@@ -19,12 +19,14 @@ class StateMachine():
         self.freq = rospy.get_param('/ControlFrequency',50)
         self.EndTime = rospy.get_param('/EndTime',60)
         self.altitude = 0.55
+        self.InterpDegree = 1 # Set Either 1 or 2
+        self.PrevTime = 0
 
         self.filename = "../" + rospy.get_param("/LogDir") + "/" + str(rospy.Time.now()) + ".csv"
         
         if self.TrackMode == 1: # Track Real Tumbller
-            self.Nstate = rospy.get_param('/Nstate',3)
-            self.TumbllerHistory = np.zeros((self.Nstate,3))
+            self.Nstate = rospy.get_param('/Nstate',6)
+            self.TumbllerHistory = []
 
         elif self.TrackMode == 2:
             if TumbllerPath is None:
@@ -64,17 +66,17 @@ class StateMachine():
     def NextMove(self,t,y0):
         self.altitude = y0[2]
         if self.State == "search":
-            if len(self.Controller.Reference) == 0:
+            if len(self.Controller.RefStore) == 0:
                 return [0,0,0.3]
             u = self.Controller.NextMove(t,y0) + [0,0,0.3]
             e = self.Controller.e
             if np.linalg.norm(e[0:2]) <= self.SearchErrTol:
-                self.StateTransition("land", t, y0)
+                self.StateTransition("land", t, np.reshape(y0,(-1)))
         
         elif self.State == "land":
             u = self.Controller.NextMove(t,y0)
             #e = self.Controller.e
-            if np.linalg.norm(y0[2]) <= self.LandErrTol:
+            if np.linalg.norm(y0[2]) <= self.LandErrTol or t >= self.EndTime:
                 self.StateTransition("AllStop")
         
 
@@ -94,34 +96,70 @@ class StateMachine():
         self.State = newState
         print("Switched to ",self.State, " phase")
         if self.State == 'land':
+            ref = self.Controller.Reference
             self.Controller = self.LandController
             if self.TrackMode == 1:
-                self.setReference(y0,t)
+                #self.setReference(y0,t)
+                self.Controller.RefStore = ref
+                pass
             elif self.TrackMode == 2:
                 self.Controller.setReference(self.TumbllerPath[0], self.TumbllerPath[1], 
                                          [0.5*(1-(i/len(self.TumbllerPath[0]))) for i in range(len(self.TumbllerPath[0]))],self.TumbllerPath[2])
 
     def setReference(self, state, t):
         # If TrackMode  = 1, As and when you receive a reference from the Tumbller, update the variable
+        #if t-self.PrevTime>1:
+        '''
+        self.TumbllerHistory.append([state[0], state[1], state[2], t])
+            #self.PrevTime = t
+        if len(self.TumbllerHistory)>self.Nstate:
+            self.TumbllerHistory.pop(0)
         if self.TrackMode == 1:
-            timevec = np.arange(t,self.EndTime,1/self.freq)
-            x = [state[0] for i in range(len(timevec))]
-            y = [state[1] for i in range(len(timevec))]
+            timevec = np.linspace(t,self.EndTime,num=(1 + int((self.EndTime-t)*self.freq)))
+            #x = [state[0] for i in range(len(timevec))]
+            #y = [state[1] for i in range(len(timevec))]
+            if len(self.TumbllerHistory)<self.Nstate:
+                x = [state[0] for i in range(len(timevec))]
+                y = [state[1] for i in range(len(timevec))]
+            else:
+                x_vals = [point[0] for point in self.TumbllerHistory]
+                y_vals = [point[1] for point in self.TumbllerHistory]
+                #z_vals = np.array([point[2] for point in self.TumbllerHistory])
+                time_vals = [point[3] for point in self.TumbllerHistory]
+
+                px = np.polyfit(time_vals, x_vals, self.InterpDegree)
+                py = np.polyfit(time_vals, y_vals, self.InterpDegree)
+                #pz = np.polyfit(time_vals, z_vals, self.InterpDegree)
+
+                x = np.polyval(px, timevec)
+                y = np.polyval(py, timevec)
+
+                #z = np.polyval(pz, timevec)
             if self.State == "land":
-                z = [state[2] + (self.altitude-state[2])*(1 - i/len(timevec)) for i in range(len(timevec))]
+                z = [(state[2] + (self.altitude-state[2])*(1 - i/len(timevec))) for i in range(len(timevec))]
             else:
                 z = [0.55 for i in range(len(timevec))]
             self.Controller.setReference(x,y,z,timevec)
         else:
             self.Controller.setReference(state[0], state[1], state[2], t)
-
+        '''
+        #print("FSM", state)
+        timevec = np.linspace(t,self.EndTime,num=(1 + int((self.EndTime-t)*self.freq)))
+        x = [state[0] for i in range(len(timevec))]
+        y = [state[1] for i in range(len(timevec))]
+        if self.State == "land":
+            z = [(state[2] + (self.altitude-state[2])*(1 - i/len(timevec))) for i in range(len(timevec))]
+        else:
+            z = [0.55 for i in range(len(timevec))]
+        self.Controller.setReference(x,y,z,timevec)
+        #'''
         
 
 
     def log(self, t, state, ref, u):
         f = open(self.filename, 'a+')
         if os.path.getsize(self.filename) == 0:
-            f.write("Time," + "X,Y,Z,Vx,Vy,Vz,r,p,y," + "rx,ry,rz," + "Ux,Uy,Uz"+"\n")
+            f.write("Time," + "X,Y,Z," + "rx,ry,rz," + "Ux,Uy,Uz"+"\n")
         f.write(str(t) + ",")
         for x in state:
             f.write(str(x)+",")

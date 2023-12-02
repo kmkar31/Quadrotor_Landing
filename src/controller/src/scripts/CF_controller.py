@@ -3,9 +3,8 @@
 import rospy
 import numpy as np
 import numpy.matlib as mat
-from cvxopt.solvers import qp
+from cvxopt import solvers
 from cvxopt import matrix
-from qpsolvers import solve_qp
 import os
 
 class MPCWrapper():
@@ -34,6 +33,7 @@ class MPCWrapper():
         self.T = rospy.get_param('/EndTime',60)
         self.freq = rospy.get_param("/ControlFrequency", 50) # What Frequency are we controlling at
         self.Reference = dict()
+        self.RefStore = dict()
     
     def setStartTime(self,t):
         self.StartTime = t
@@ -68,14 +68,17 @@ class MPCWrapper():
   
     def setReference(self, x,y,z, timevec):
         # Creates a dictionary of reference paths at corresponding times
-        self.Reference['x'] = np.reshape(x,(-1,))
-        self.Reference['y'] = np.reshape(y,(-1,))
-        self.Reference['z'] = np.reshape(z,(-1,))
-        self.Reference['time'] = timevec
-        print(len(self.Reference['x'],self.Reference['time'] ))
+        RefStore = dict()
+        RefStore['x'] = np.reshape(x,(-1,))
+        RefStore['y'] = np.reshape(y,(-1,))
+        RefStore['z'] = np.reshape(z,(-1,))
+        RefStore['time'] = timevec
+        self.RefStore = RefStore
     
     def NextMove(self, t, y0):
         # Build the Reference Signal
+        self.Reference = self.RefStore
+        #print(len(self.Reference['x']), len(self.Reference['time']))
         horizonTimes = [t + i/self.freq for i in range(self.N)]
         # Interpolates the reference values at the control timesteps
         xref = np.interp(horizonTimes, self.Reference['time'], self.Reference['x'])
@@ -88,10 +91,12 @@ class MPCWrapper():
 
         self.e = np.reshape(y0[0:3,:] - self.ref[0:3,:],(-1))
 
+        print("MPC", self.ref[0:3])
         # Construct Quadprog:
         x0 = np.linalg.pinv(self.C)@y0[0:3] # Convert measurements back to state - Works because measurements are filtered
         f = self.Fx@x0 - self.Fr@self.ref
-        sol = qp(matrix(self.H), matrix(f), matrix(self.G), matrix(np.array(self.W(x0))))
+        solvers.options['show_progress'] = False
+        sol = solvers.qp(matrix(self.H), matrix(f), matrix(self.G), matrix(np.array(self.W(x0))))
         z = np.array(sol['x'])
         if len(z)==0:
             raise Exception("Solution to QP Non-existent")

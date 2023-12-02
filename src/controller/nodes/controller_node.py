@@ -26,10 +26,9 @@ def process_TBfbk(msg, args):
     tstart = args[1]
     if len(msg.state) != 0: 
         y0 = np.reshape(np.array(msg.state),(-1))
-    else:
-        y0 = np.zeros((3,))
-    t = (rospy.Time.now() - tstart).to_sec()
-    FSM.setReference(y0,t)
+        t = (rospy.Time.now() - tstart).to_sec()
+        #print("Controller",y0)
+        FSM.setReference(y0,t)
 
 def InitializeStateMachine():
     
@@ -37,7 +36,7 @@ def InitializeStateMachine():
     T = rospy.get_param('/EndTime',60)
     TBref_time = [i/CtrlFreq for i in range(T*CtrlFreq)]
 
-    FSM = StateMachine(([0.6*np.cos(np.pi*t/10) for t in TBref_time], [0.6*np.sin(np.pi*t/10) for t in TBref_time], TBref_time))
+    FSM = StateMachine()
     
     #Other Tumbller Paths
     #MPC.setTumbllerPath([0.6*np.cos(np.pi*t/10) for t in TBref_time], [0.6*np.sin(np.pi*t/10) for t in TBref_time], TBref_time) # reference is a dictionary

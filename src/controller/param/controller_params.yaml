@@ -5,10 +5,10 @@ EndTime : 60 # Total Number of Seconds
 ControlMode : 1 #1 for MPC, 2 for PID
 
 TrackMode : 1 # 1 for Real Time Tumbller Tracking, 2 for Virtual Tumbller
-Nstate : 3 # Number of past states to perform prediction with
+Nstate : 6 # Number of past states to perform prediction with
 
-SearchErrTol : 0.05 # Error Tolerance in m
-LandErrTol : 0.05 # Landing Error Tolerance in m
+SearchErrTol : 0.03 # Error Tolerance in m
+LandErrTol : 0.01 # Landing Error Tolerance in m
 
 MPCParams:
         m : 6
