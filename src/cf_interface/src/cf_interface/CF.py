@@ -23,6 +23,7 @@ class CrazyFlieWrapper():
         #self.logcon.add_variable('stateEstimate.roll')
         #self.logcon.add_variable('stateEstimate.pitch')
         #self.logcon.add_variable('stateEstimate.yaw')
+        #self.logcon.add_variable('lighthouse.status')
         
         self.cf.log.add_config(self.logcon)
         self.logcon.data_received_cb.add_callback(self.process_log)
@@ -45,6 +46,7 @@ class CrazyFlieWrapper():
         self.state.append(data['stateEstimateZ.x']/1000.0) #mm to m
         self.state.append(data['stateEstimateZ.y']/1000.0)
         self.state.append(data['stateEstimateZ.z']/1000.0)
+        #self.state.append(data['lighthouse.status'])
         
         #self.state.append(data['stateEstimateZ.vx']/1000.0)
         #self.state.append(data['stateEstimateZ.vy']/1000.0)

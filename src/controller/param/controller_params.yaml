@@ -5,28 +5,28 @@ EndTime : 60 # Total Number of Seconds
 ControlMode : 1 #1 for MPC, 2 for PID
 
 TrackMode : 1 # 1 for Real Time Tumbller Tracking, 2 for Virtual Tumbller
-Nstate : 6 # Number of past states to perform prediction with
+Nstate : 10 # Number of past states to perform prediction with
 
-SearchErrTol : 0.03 # Error Tolerance in m
-LandErrTol : 0.01 # Landing Error Tolerance in m
+SearchErrTol : 0.05 # Error Tolerance in m
+LandErrTol : 0.07 # Landing Error Tolerance in m
 
 MPCParams:
         m : 6
         p : 3
         q : 3
-        N : 15
+        N : 20
         A : [[1.9525, -0.9525, 0,0,0,0], [1,0,0,0,0,0],[0,0,1.9623,-0.9623,0,0],[0,0,1,0,0,0], [0,0,0,0,1.9571,-0.9571], [0,0,0,0,1,0]]
         B : [[0.0156,0,0],[0,0,0],[0,0.0156,0],[0,0,0],[0,0,0.0156],[0,0,0]]
         C : [[0.0153,0.0151,0,0,0,0],[0,0,0.0121,0.0120,0,0],[0,0,0,0,0.0075,0.0074]]
         Q : [[100,0,0],[0,100,0],[0,0,5]]
         R : [[2,0,0],[0,2,0],[0,0,4]]
-        Qland : [[100,0,0],[0,100,0],[0,0,8]]
-        Rland : [[2,0,0],[0,2,0],[0,0,4]]
+        Qland : [[100,0,0],[0,100,0],[0,0,12]]
+        Rland : [[2,0,0],[0,2,0],[0,0,12]]
         ymin : [[-2],[-2],[0.3]]
         yminland : [[-2],[-2],[-0.1]]
         ymax : [[2],[2],[2]]
         umin : [[-1.5],[-1.5],[0.0]]
-        uminland : [[-1.5],[-1.5],[-0.0]]
+        uminland : [[-1.5],[-1.5],[-0.2]]
         umax : [[1.5],[1.5],[1.5]]
 
 PIDParams:

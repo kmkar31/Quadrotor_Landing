@@ -91,7 +91,7 @@ class MPCWrapper():
 
         self.e = np.reshape(y0[0:3,:] - self.ref[0:3,:],(-1))
 
-        print("MPC", self.ref[0:3])
+        #print("MPC", self.ref[0:3])
         # Construct Quadprog:
         x0 = np.linalg.pinv(self.C)@y0[0:3] # Convert measurements back to state - Works because measurements are filtered
         f = self.Fx@x0 - self.Fr@self.ref
@@ -101,7 +101,8 @@ class MPCWrapper():
         if len(z)==0:
             raise Exception("Solution to QP Non-existent")
         self.u = np.reshape(z[0:self.q],(-1,))
-
+        if self.u[2] > self.umax[2]:
+            self.u[2] = self.umax[2]
         return self.u
 
 

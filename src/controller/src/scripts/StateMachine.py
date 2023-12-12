@@ -19,7 +19,7 @@ class StateMachine():
         self.freq = rospy.get_param('/ControlFrequency',50)
         self.EndTime = rospy.get_param('/EndTime',60)
         self.altitude = 0.55
-        self.InterpDegree = 1 # Set Either 1 or 2
+        self.InterpDegree = 2 # Set Either 1 or 2
         self.PrevTime = 0
 
         self.filename = "../" + rospy.get_param("/LogDir") + "/" + str(rospy.Time.now()) + ".csv"
@@ -74,9 +74,11 @@ class StateMachine():
                 self.StateTransition("land", t, np.reshape(y0,(-1)))
         
         elif self.State == "land":
-            u = self.Controller.NextMove(t,y0)
-            #e = self.Controller.e
-            if np.linalg.norm(y0[2]) <= self.LandErrTol or t >= self.EndTime:
+            u = self.Controller.NextMove(t,y0) + [0,0,0.15]
+            e = self.Controller.e
+            if np.linalg.norm(e[0:2]) <= 2*self.SearchErrTol:
+                self.altitude = self.altitude - 0.05
+            if y0[2] <= (self.TumbllerHistory[-1][2]+  self.LandErrTol) or t >= self.EndTime:
                 self.StateTransition("AllStop")
         
 
@@ -109,7 +111,7 @@ class StateMachine():
     def setReference(self, state, t):
         # If TrackMode  = 1, As and when you receive a reference from the Tumbller, update the variable
         #if t-self.PrevTime>1:
-        '''
+        #'''
         self.TumbllerHistory.append([state[0], state[1], state[2], t])
             #self.PrevTime = t
         if len(self.TumbllerHistory)>self.Nstate:
@@ -136,9 +138,10 @@ class StateMachine():
 
                 #z = np.polyval(pz, timevec)
             if self.State == "land":
-                z = [(state[2] + (self.altitude-state[2])*(1 - i/len(timevec))) for i in range(len(timevec))]
+                #z = [(state[2] + 0.03 + (self.altitude-state[2])*(1 - i/len(timevec))) for i in range(len(timevec))]
+                z = [self.altitude for i in range(len(timevec))]
             else:
-                z = [0.55 for i in range(len(timevec))]
+                z = [self.altitude for i in range(len(timevec))]
             self.Controller.setReference(x,y,z,timevec)
         else:
             self.Controller.setReference(state[0], state[1], state[2], t)
@@ -152,7 +155,7 @@ class StateMachine():
         else:
             z = [0.55 for i in range(len(timevec))]
         self.Controller.setReference(x,y,z,timevec)
-        #'''
+        '''
         
 
 

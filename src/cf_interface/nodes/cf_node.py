@@ -47,7 +47,7 @@ with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
     commander = Commander(scf.cf)
     hlcommander = HighLevelCommander(scf.cf)
 
-    hlcommander.takeoff(0.5,2)
+    hlcommander.takeoff(0.55,2)
     time.sleep(2)
     hlcommander.go_to(0,0,0.55,0,3)
     time.sleep(3)
